@@ -4,7 +4,32 @@ import select
 import sys
 import time
 from bluepy import btle
+import pymysql
+import json
 
+def get_config():
+    with open('./src/config.json', 'r') as file:
+        config = json.load(file)
+    return config
+
+def save_to_sql(mac_address, heartbeat):
+    config = get_config()
+
+    conn = pymysql.connect(
+        host=config["mysql"]["IP"],
+        port=int(config["mysql"]["PORT"]),
+        user=config["mysql"]["username"],
+        passwd=config["mysql"]["password"],
+        db=config["mysql"]["DB"]
+    )
+
+    try:
+        with conn.cursor() as cursor:
+            sql = f"INSERT INTO {config['mysql']['TABLES']} (mac_address, heartbeat) VALUES (%s, %s)"
+            cursor.execute(sql, (mac_address, heartbeat))
+        conn.commit()
+    finally:
+        conn.close()
 
 class BatteryDelegate(DefaultDelegate):
     def __init__(self):
@@ -58,6 +83,28 @@ def list_characteristics_for_service(peripheral, service_uuid):
                 print(f"    Value: Unable to read")
 
 class NotifyDelegate(DefaultDelegate):
+    def __init__(self, mac_address):
+        DefaultDelegate.__init__(self)
+        self.mac_address = mac_address
+
+    def handleNotification(self, cHandle, data):
+        print(f"Notification received from {cHandle}: {data}")
+        
+        if len(data) >= 4:
+            try:
+                heartbeat_byte = data[3]
+                heartbeat_value = int(heartbeat_byte)
+                print(f"Heartbeat Value: {heartbeat_value}")
+
+                # 保存到SQL
+                save_to_sql(self.mac_address, heartbeat_value)
+
+            except IndexError:
+                print("Received data is incomplete or too long. Skipping this notification.")
+        else:
+            print(f"Received data length {len(data)} is less than expected. Skipping this notification.")
+'''
+class NotifyDelegate(DefaultDelegate):
     def __init__(self):
         DefaultDelegate.__init__(self)
 
@@ -79,7 +126,7 @@ class NotifyDelegate(DefaultDelegate):
         else:
             print(f"Received data length {len(data)} is less than expected. Skipping this notification.")
 
-
+'''
 def write_data_every_interval(p, interval=60):
     while not exit_flag.is_set():  # While the program should not exit
         char_to_write = p.getCharacteristics(uuid="000033f1-0000-1000-8000-00805f9b34fb")[0]

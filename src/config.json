@@ -4,11 +4,11 @@
         {"name": "Device_2", "MAC": "AA:BB:CC:DD:EE:FF"}
     ],
     "mysql": {
-        "IP": "192.168.1.10",
+        "IP": "127.0.0.1",
         "PORT": "3306",
-        "DB": "my_database",
-        "username": "admin",
-        "password": "password123"
+        "DB": "ble_devices",
+        "username": "root",
+        "password": "password"
     }
 }
 
