@@ -77,12 +77,15 @@ def main():
 
     try:
         p.withDelegate(NotifyDelegate())
-        
+        print("send e511")
         # Find the characteristic to write to
         char_to_write = p.getCharacteristics(uuid="000033f1-0000-1000-8000-00805f9b34fb")[0]
 
         # Write the value 0xe511 to the characteristic
-        char_to_write.write(bytes([0xe5, 0x11]))
+        #char_to_write.write(bytes([0x11, 0xe5]))
+
+        char_to_write.write(bytes([0xe5, 0x11]), withResponse=True)
+
 
         # Enable notifications for the other characteristic
         notify_char = p.getCharacteristics(uuid="000033f2-0000-1000-8000-00805f9b34fb")[0]
