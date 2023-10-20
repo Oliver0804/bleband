@@ -8,30 +8,75 @@ import time
 from bluepy import btle
 import pymysql
 import json
+import mysql.connector
 
 def get_config():
     with open('./src/config.json', 'r') as file:
         config = json.load(file)
     return config
 
-def save_to_sql(mac_address, heartbeat):
-    config = get_config()
+import atexit
+from queue import Queue
 
-    conn = pymysql.connect(
-        host=config["mysql"]["IP"],
-        port=int(config["mysql"]["PORT"]),
-        user=config["mysql"]["username"],
-        passwd=config["mysql"]["password"],
-        db=config["mysql"]["DB"]
+data_queue = Queue()
+db_connection = None
+db_cursor = None
+
+def init_db_connection():
+    global db_connection, db_cursor
+    with open('./src/config.json', 'r') as config_file:
+        config = json.load(config_file)
+    db_connection = mysql.connector.connect(
+        host=config['mysql']['IP'],
+        user=config['mysql']['username'],
+        password=config['mysql']['password'],
+        database=config['mysql']['DB'],
+        port=config['mysql']['PORT']
     )
+    db_cursor = db_connection.cursor()
+    atexit.register(close_db_connection)
 
+def close_db_connection():
+    global db_connection, db_cursor
+    if db_cursor:
+        db_cursor.close()
+    if db_connection:
+        db_connection.close()
+
+def save_to_sql(mac_address, heartbeat_value):
     try:
-        with conn.cursor() as cursor:
-            sql = f"INSERT INTO {config['mysql']['TABLES']} (mac_address, heartbeat) VALUES (%s, %s)"
-            cursor.execute(sql, (mac_address, heartbeat))
-        conn.commit()
-    finally:
-        conn.close()
+        # Load configuration
+        with open('./src/config.json', 'r') as config_file:
+            config = json.load(config_file)
+
+        # Connect to the database
+        connection = mysql.connector.connect(
+            host=config['mysql']['IP'],
+            user=config['mysql']['username'],
+            password=config['mysql']['password'],
+            database=config['mysql']['DB'],
+            port=config['mysql']['PORT']
+        )
+
+        if connection is None:
+            print("Failed to connect to the database.")
+            return
+
+        cursor = connection.cursor()
+
+        # Insert data into the database
+        sql = f"INSERT INTO {config['mysql']['TABLES']} (mac_address, heartbeat) VALUES (%s, %s)"
+        
+        # Print SQL query for debugging purposes
+        print(f"Executing SQL: {sql}")
+
+        cursor.execute(sql, (mac_address, heartbeat_value))
+        connection.commit()
+        cursor.close()
+        connection.close()
+    except Exception as e:
+        print(f"Error saving to SQL: {e}")
+
 
 class BatteryDelegate(DefaultDelegate):
     def __init__(self):
@@ -84,6 +129,9 @@ def list_characteristics_for_service(peripheral, service_uuid):
             except:
                 print(f"    Value: Unable to read")
 
+
+
+
 class NotifyDelegate(DefaultDelegate):
     def __init__(self, mac_address):
         DefaultDelegate.__init__(self)
@@ -98,13 +146,14 @@ class NotifyDelegate(DefaultDelegate):
                 heartbeat_value = int(heartbeat_byte)
                 print(f"Heartbeat Value: {heartbeat_value}")
 
-                # 保存到SQL
-                save_to_sql(self.mac_address, heartbeat_value)
+                # Add data to the queue
+                data_queue.put((self.mac_address, heartbeat_value))
 
             except IndexError:
                 print("Received data is incomplete or too long. Skipping this notification.")
         else:
             print(f"Received data length {len(data)} is less than expected. Skipping this notification.")
+
 '''
 class NotifyDelegate(DefaultDelegate):
     def __init__(self):
@@ -183,6 +232,15 @@ def main():
         finally:
             p.disconnect()
 
+
+def process_data():
+    while True:
+        mac_address, heartbeat_value = data_queue.get()  # This will block until an item is available
+        save_to_sql(mac_address, heartbeat_value)
+
+
 if __name__ == "__main__":
+    threading.Thread(target=process_data).start()  # Start the data processing thread
+
     main()
 
