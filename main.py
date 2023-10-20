@@ -3,6 +3,9 @@ import threading
 import select
 import sys
 import time
+from bluepy import btle
+
+
 class BatteryDelegate(DefaultDelegate):
     def __init__(self):
         DefaultDelegate.__init__(self)
@@ -61,17 +64,20 @@ class NotifyDelegate(DefaultDelegate):
     def handleNotification(self, cHandle, data):
         print(f"Notification received from {cHandle}: {data}")
         
-        try:
-            # 提取第四個byte
-            heartbeat_byte = data[3]
-            
-            # 將其從hex轉換為int
-            heartbeat_value = int(heartbeat_byte)
-            
-            # 打印心跳的數值
-            print(f"Heartbeat Value: {heartbeat_value}")
-        except IndexError:
-            print("Received data is incomplete or too long. Skipping this notification.")
+        if len(data) >= 4:
+            try:
+                # 提取第四個byte
+                heartbeat_byte = data[3]
+                
+                # 將其從hex轉換為int
+                heartbeat_value = int(heartbeat_byte)
+                
+                # 打印心跳的數值
+                print(f"Heartbeat Value: {heartbeat_value}")
+            except IndexError:
+                print("Received data is incomplete or too long. Skipping this notification.")
+        else:
+            print(f"Received data length {len(data)} is less than expected. Skipping this notification.")
 
 
 def write_data_every_interval(p, interval=60):
@@ -85,40 +91,50 @@ def check_for_exit_key():
         user_input = input()
         if user_input.lower() == 'q':
             exit_flag.set()  # Set the exit_flag to indicate the program should exit
+
+
 def main():
     device_mac, addr_type = scan_for_devices()
-    p = Peripheral(device_mac, addr_type)
+    
+    while True:
+        p = Peripheral(device_mac, addr_type)
+        try:
+            p.withDelegate(NotifyDelegate())
 
-    try:
-        p.withDelegate(NotifyDelegate())
+            last_write_time = 0
 
-        last_write_time = 0  # To keep track of when we last wrote the data
+            # Enable notifications for the characteristic
+            notify_char = p.getCharacteristics(uuid="000033f2-0000-1000-8000-00805f9b34fb")[0]
+            notify_handle = notify_char.getHandle() + 1
+            p.writeCharacteristic(notify_handle, (1).to_bytes(2, byteorder='little'))
 
-        # Enable notifications for the other characteristic
-        notify_char = p.getCharacteristics(uuid="000033f2-0000-1000-8000-00805f9b34fb")[0]
-        notify_handle = notify_char.getHandle() + 1
-        p.writeCharacteristic(notify_handle, (1).to_bytes(2, byteorder='little'))
+            print("Press q to exit.")
+            while True:
+                current_time = time.time()
+                if current_time - last_write_time >= 60:
+                    char_to_write = p.getCharacteristics(uuid="000033f1-0000-1000-8000-00805f9b34fb")[0]
+                    char_to_write.write(bytes([0xe5, 0x11]), withResponse=True)
+                    last_write_time = current_time
 
-        print("Press q to exit.")
-        while True:
-            current_time = time.time()
-            if current_time - last_write_time >= 60:  # If 60 seconds have passed since last write
-                char_to_write = p.getCharacteristics(uuid="000033f1-0000-1000-8000-00805f9b34fb")[0]
-                char_to_write.write(bytes([0xe5, 0x11]), withResponse=True)
-                last_write_time = current_time
+                if p.waitForNotifications(1.0):
+                    continue
 
-            if p.waitForNotifications(1.0):  # Wait for notification for 1 second
-                continue
-            
-            # Check if there's input from the user without blocking
-            rlist, _, _ = select.select([sys.stdin], [], [], 0.1)
-            if rlist:
-                user_input = sys.stdin.readline()
-                if user_input.lower().strip() == 'q':
-                    break
+                # Check for user input
+                rlist, _, _ = select.select([sys.stdin], [], [], 0.1)
+                if rlist:
+                    user_input = sys.stdin.readline()
+                    if user_input.lower().strip() == 'q':
+                        p.disconnect()
+                        return
 
-    finally:
-        p.disconnect()
+        except bluepy.btle.BTLEDisconnectError:
+            print("Device disconnected. Trying to reconnect...")
+            p.disconnect()
+            time.sleep(5)  # Wait for 5 seconds before trying to reconnect
+
+        finally:
+            p.disconnect()
 
 if __name__ == "__main__":
     main()
+
