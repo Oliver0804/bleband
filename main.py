@@ -1,5 +1,8 @@
 from bluepy.btle import Scanner, Peripheral, DefaultDelegate, ADDR_TYPE_RANDOM, ADDR_TYPE_PUBLIC
-
+import threading
+import select
+import sys
+import time
 class BatteryDelegate(DefaultDelegate):
     def __init__(self):
         DefaultDelegate.__init__(self)
@@ -71,31 +74,48 @@ class NotifyDelegate(DefaultDelegate):
             print("Received data is incomplete or too long. Skipping this notification.")
 
 
+def write_data_every_interval(p, interval=60):
+    while not exit_flag.is_set():  # While the program should not exit
+        char_to_write = p.getCharacteristics(uuid="000033f1-0000-1000-8000-00805f9b34fb")[0]
+        char_to_write.write(bytes([0xe5, 0x11]), withResponse=True)
+        time.sleep(interval)
+
+def check_for_exit_key():
+    while not exit_flag.is_set():  # While the program should not exit
+        user_input = input()
+        if user_input.lower() == 'q':
+            exit_flag.set()  # Set the exit_flag to indicate the program should exit
 def main():
     device_mac, addr_type = scan_for_devices()
     p = Peripheral(device_mac, addr_type)
 
     try:
         p.withDelegate(NotifyDelegate())
-        print("send e511")
-        # Find the characteristic to write to
-        char_to_write = p.getCharacteristics(uuid="000033f1-0000-1000-8000-00805f9b34fb")[0]
 
-        # Write the value 0xe511 to the characteristic
-        #char_to_write.write(bytes([0x11, 0xe5]))
-
-        char_to_write.write(bytes([0xe5, 0x11]), withResponse=True)
-
+        last_write_time = 0  # To keep track of when we last wrote the data
 
         # Enable notifications for the other characteristic
         notify_char = p.getCharacteristics(uuid="000033f2-0000-1000-8000-00805f9b34fb")[0]
-        notify_handle = notify_char.getHandle() + 1  # Usually the handle used for notifying is the characteristic handle + 1
+        notify_handle = notify_char.getHandle() + 1
         p.writeCharacteristic(notify_handle, (1).to_bytes(2, byteorder='little'))
 
+        print("Press q to exit.")
         while True:
+            current_time = time.time()
+            if current_time - last_write_time >= 60:  # If 60 seconds have passed since last write
+                char_to_write = p.getCharacteristics(uuid="000033f1-0000-1000-8000-00805f9b34fb")[0]
+                char_to_write.write(bytes([0xe5, 0x11]), withResponse=True)
+                last_write_time = current_time
+
             if p.waitForNotifications(1.0):  # Wait for notification for 1 second
-                continue  # Notification received, process it in the delegate
-            print("Waiting for notification...")
+                continue
+            
+            # Check if there's input from the user without blocking
+            rlist, _, _ = select.select([sys.stdin], [], [], 0.1)
+            if rlist:
+                user_input = sys.stdin.readline()
+                if user_input.lower().strip() == 'q':
+                    break
 
     finally:
         p.disconnect()
