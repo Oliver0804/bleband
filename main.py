@@ -1,4 +1,6 @@
 from bluepy.btle import Scanner, Peripheral, DefaultDelegate, ADDR_TYPE_RANDOM, ADDR_TYPE_PUBLIC
+from bluepy.btle import BTLEDisconnectError
+
 import threading
 import select
 import sys
@@ -139,14 +141,13 @@ def check_for_exit_key():
         if user_input.lower() == 'q':
             exit_flag.set()  # Set the exit_flag to indicate the program should exit
 
-
 def main():
-    device_mac, addr_type = scan_for_devices()
-    
     while True:
+        device_mac, addr_type = scan_for_devices()
+
         p = Peripheral(device_mac, addr_type)
         try:
-            p.withDelegate(NotifyDelegate())
+            p.withDelegate(NotifyDelegate(device_mac))
 
             last_write_time = 0
 
@@ -174,7 +175,7 @@ def main():
                         p.disconnect()
                         return
 
-        except bluepy.btle.BTLEDisconnectError:
+        except BTLEDisconnectError:
             print("Device disconnected. Trying to reconnect...")
             p.disconnect()
             time.sleep(5)  # Wait for 5 seconds before trying to reconnect
