@@ -7,7 +7,7 @@
         "IP": "127.0.0.1",
         "PORT": "3306",
         "DB": "ble_devices",
-	"TABLES": "heartbeat_data",
+	"TABLES": "HeartbeatData",
         "username": "root",
         "password": "password"
     }
