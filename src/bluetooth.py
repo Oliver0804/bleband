@@ -1,0 +1,112 @@
+from bluepy.btle import Scanner, Peripheral, DefaultDelegate
+from src.config import get_config
+from queue import Queue
+
+data_queue = Queue()
+
+class BatteryDelegate(DefaultDelegate):
+    def __init__(self):
+        DefaultDelegate.__init__(self)
+
+    def handleNotification(self, cHandle, data):
+        print(f"Battery Level: {ord(data)}%")
+
+
+def scan_for_devices():
+    while True:  # Infinite loop to allow re-scanning
+        scanner = Scanner()
+        scanner.scan(10.0)  # Scan for 10 seconds
+        devices = list(scanner.getDevices())  # Convert devices to a list
+
+        print("0. Rescan for devices.")
+        for i, dev in enumerate(devices, start=1):  # start=1 makes the index start from 1
+            print(f"{i}. Device {dev.addr} ({dev.addrType}, {dev.getValueText(9) or 'Unknown Name'}), RSSI={dev.rssi} dB")  # dev.getValueText(9) gets the device name
+
+        print(f"{len(devices) + 1}. Exit.")
+
+        while True:  # Inner loop to validate the user's input
+            try:
+                index = int(input("Select the device to connect to (by index) or other options above: "))
+                if 0 <= index <= len(devices) + 1:
+                    break  # Valid input, break out of the inner loop
+                else:
+                    print("Invalid choice. Please select a valid option.")
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+
+        if index == 0:  # Rescan
+            continue
+        elif index == len(devices) + 1:  # Exit
+            exit(0)
+        else:
+            return devices[index - 1].addr, devices[index - 1].addrType  # -1 because our device indexing starts from 1
+
+
+def list_characteristics_for_service(peripheral, service_uuid):
+    service = peripheral.getServiceByUUID(service_uuid)
+    chars = service.getCharacteristics()
+
+    print(f"Characteristics for Service UUID: {service_uuid}")
+    for char in chars:
+        print(f"  UUID: {char.uuid} - Properties: {char.propertiesToString()}")
+        if "READ" in char.propertiesToString():
+            try:
+                value = char.read()
+                print(f"    Value: {value}")
+            except:
+                print(f"    Value: Unable to read")
+
+
+
+
+class NotifyDelegate(DefaultDelegate):
+    def __init__(self, mac_address):
+        DefaultDelegate.__init__(self)
+        self.mac_address = mac_address
+
+    def handleNotification(self, cHandle, data):
+        print(f"Notification received from {cHandle}: {data}")
+
+        if len(data) >= 4:
+            try:
+                heartbeat_byte = data[3]
+                heartbeat_value = int(heartbeat_byte)
+                print(f"Heartbeat Value: {heartbeat_value}")
+
+                # Add data to the queue
+                data_queue.put((self.mac_address, heartbeat_value))
+
+            except IndexError:
+                print("Received data is incomplete or too long. Skipping this notification.")
+        else:
+            print(f"Received data length {len(data)} is less than expected. Skipping this notification.")
+
+'''
+class NotifyDelegate(DefaultDelegate):
+    def __init__(self):
+        DefaultDelegate.__init__(self)
+
+    def handleNotification(self, cHandle, data):
+        print(f"Notification received from {cHandle}: {data}")
+
+        if len(data) >= 4:
+            try:
+                # 提取第四個byte
+                heartbeat_byte = data[3]
+
+                # 將其從hex轉換為int
+                heartbeat_value = int(heartbeat_byte)
+
+                # 打印心跳的數值
+                print(f"Heartbeat Value: {heartbeat_value}")
+            except IndexError:
+                print("Received data is incomplete or too long. Skipping this notification.")
+        else:
+            print(f"Received data length {len(data)} is less than expected. Skipping this notification.")
+
+'''
+def write_data_every_interval(p, interval=60):
+    while not exit_flag.is_set():  # While the program should not exit
+        char_to_write = p.getCharacteristics(uuid="000033f1-0000-1000-8000-00805f9b34fb")[0]
+        char_to_write.write(bytes([0xe5, 0x11]), withResponse=True)
+        time.sleep(interval)
