@@ -83,9 +83,7 @@ def save_to_sql(mac_address, heartbeat_value):
         #print(f"Executing SQL: {sql}")
 
         cursor.execute(sql, (mac_address, heartbeat_value))
-         # Print SQL query for debugging purposes
-        print(f"Executing SQL: {sql}")
-
+        print((mac_address,heartbeat_value))
 
         connection.commit()
         cursor.close()
