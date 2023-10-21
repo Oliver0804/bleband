@@ -80,9 +80,13 @@ def save_to_sql(mac_address, heartbeat_value):
         sql = f"INSERT INTO {config['mysql']['TABLES']} (mac_address, heartbeat) VALUES (%s, %s)"
         
         # Print SQL query for debugging purposes
-        print(f"Executing SQL: {sql}")
+        #print(f"Executing SQL: {sql}")
 
         cursor.execute(sql, (mac_address, heartbeat_value))
+         # Print SQL query for debugging purposes
+        print(f"Executing SQL: {sql}")
+
+
         connection.commit()
         cursor.close()
         connection.close()

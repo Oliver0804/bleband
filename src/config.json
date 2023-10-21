@@ -1,15 +1,16 @@
 {
     "bluetooth_devices": [
-        {"name": "Device_1", "MAC": "00:11:22:33:44:55"},
-        {"name": "Device_2", "MAC": "AA:BB:CC:DD:EE:FF"}
+        {
+            "name": "ERGOLINK",
+            "MAC": "78:02:b7:03:a3:f6"
+        }
     ],
     "mysql": {
         "IP": "127.0.0.1",
         "PORT": "3306",
         "DB": "ble_devices",
-	"TABLES": "HeartbeatData",
+        "TABLES": "HeartbeatData",
         "username": "root",
         "password": "password"
     }
 }
-
