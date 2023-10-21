@@ -1,5 +1,7 @@
 from bluepy.btle import Scanner, Peripheral, DefaultDelegate
 from src.config import get_config
+from src.database import save_to_sql
+
 from queue import Queue
 import json
 from bluepy.btle import Scanner
@@ -23,7 +25,7 @@ def save_device_info(name, mac):
     
         with open(config_path, 'w') as file:
             json.dump(config, file, indent=4)
-        print(f"Device info saved: {name} - {mac}")
+        print(f"Device info sav/ed: {name} - {mac}")
     else:
         print(f"Device info already exists: {name} - {mac}")
 
@@ -109,6 +111,14 @@ def scan_for_devices():
             print(f"Device info saved: {device_name} - {device_mac}")
             return device_mac, selected_device.addrType  # -1 because our device indexing starts from 1
 
+def write_data_every_interval(p, interval=60):
+    while not exit_flag.is_set():  # While the program should not exit
+        char_to_write = p.getCharacteristics(uuid="000033f1-0000-1000-8000-00805f9b34fb")[0]
+        char_to_write.write(bytes([0xe5, 0x11]), withResponse=True)
+        time.sleep(interval)
+
+
+
 class NotifyDelegate(DefaultDelegate):
     def __init__(self, mac_address):
         DefaultDelegate.__init__(self)
@@ -116,49 +126,14 @@ class NotifyDelegate(DefaultDelegate):
 
     def handleNotification(self, cHandle, data):
         print(f"Notification received from {cHandle}: {data}")
-        
-        if len(data) >= 4:
-            try:
-                heartbeat_byte = data[3]
-                heartbeat_value = int(heartbeat_byte)
-                print(f"Heartbeat Value: {heartbeat_value}")
+        try:
+            heartbeat_byte = data[3]
+            heartbeat_value = int(heartbeat_byte)
+            print(f"Heartbeat Value: {heartbeat_value}")
 
-                # Add data to the queue
-                data_queue.put((self.mac_address, heartbeat_value))
+            # 调用 save_to_mysql 函数
+            save_to_sql(self.mac_address, heartbeat_value)  # 替换为您的函数名和参数（如果有必要）
 
-            except IndexError:
-                print("Received data is incomplete or too long. Skipping this notification.")
-        else:
-            print(f"Received data length {len(data)} is less than expected. Skipping this notification.")
+        except IndexError:
+            print("Received data is incomplete or too long. Skipping this notification.")
 
-
-
-'''
-class NotifyDelegate(DefaultDelegate):
-    def __init__(self):
-        DefaultDelegate.__init__(self)
-
-    def handleNotification(self, cHandle, data):
-        print(f"Notification received from {cHandle}: {data}")
-
-        if len(data) >= 4:
-            try:
-                # 提取第四個byte
-                heartbeat_byte = data[3]
-
-                # 將其從hex轉換為int
-                heartbeat_value = int(heartbeat_byte)
-
-                # 打印心跳的數值
-                print(f"Heartbeat Value: {heartbeat_value}")
-            except IndexError:
-                print("Received data is incomplete or too long. Skipping this notification.")
-        else:
-            print(f"Received data length {len(data)} is less than expected. Skipping this notification.")
-
-'''
-def write_data_every_interval(p, interval=60):
-    while not exit_flag.is_set():  # While the program should not exit
-        char_to_write = p.getCharacteristics(uuid="000033f1-0000-1000-8000-00805f9b34fb")[0]
-        char_to_write.write(bytes([0xe5, 0x11]), withResponse=True)
-        time.sleep(interval)
