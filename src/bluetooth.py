@@ -1,6 +1,7 @@
 from bluepy.btle import Scanner, Peripheral, DefaultDelegate
 from src.config import get_config
 from src.database import save_to_sql
+from datetime import datetime
 
 from queue import Queue
 import json
@@ -25,7 +26,7 @@ def save_device_info(name, mac):
     
         with open(config_path, 'w') as file:
             json.dump(config, file, indent=4)
-        print(f"Device info sav/ed: {name} - {mac}")
+        print(f"Device info saved: {name} - {mac}")
     else:
         print(f"Device info already exists: {name} - {mac}")
 
@@ -118,7 +119,6 @@ def write_data_every_interval(p, interval=60):
         time.sleep(interval)
 
 
-
 class NotifyDelegate(DefaultDelegate):
     def __init__(self, mac_address):
         DefaultDelegate.__init__(self)
@@ -126,14 +126,19 @@ class NotifyDelegate(DefaultDelegate):
 
     def handleNotification(self, cHandle, data):
         print(f"Notification received from {cHandle}: {data}")
-        try:
-            heartbeat_byte = data[3]
-            heartbeat_value = int(heartbeat_byte)
-            print(f"Heartbeat Value: {heartbeat_value}")
+        if (len(data)>2) and (len(data)<5) :
+            try:
+                heartbeat_byte = data[3]
+                heartbeat_value = int(heartbeat_byte)
 
-            # 调用 save_to_mysql 函数
-            save_to_sql(self.mac_address, heartbeat_value)  # 替换为您的函数名和参数（如果有必要）
+                # Get current time and print it along with Heartbeat Value
+                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                print(f"{current_time} - Heartbeat Value: {heartbeat_value}")
 
-        except IndexError:
-            print("Received data is incomplete or too long. Skipping this notification.")
+                # 调用 save_to_mysql 函数
+                save_to_sql(self.mac_address, heartbeat_value)  # 替换为您的函数名和参数（如果有必要）
 
+            except IndexError:
+                print("Received data is incomplete or too long. Skipping this notification.")
+        else:
+            print ("Data len error.")

@@ -3,6 +3,10 @@
         {
             "name": "ERGOLINK",
             "MAC": "78:02:b7:03:a3:f6"
+        },
+        {
+            "name": "MK66(ID-1E35)",
+            "MAC": "78:02:b7:dc:1e:35"
         }
     ],
     "mysql": {
