@@ -14,7 +14,7 @@
         "password": "password"
     },
     "bluetooth_settings": {
-        "auto_connect": "n",
+        "auto_connect": "y",
         "max_connection_limit": 1
     }
 }

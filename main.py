@@ -93,12 +93,13 @@ def main():
         
         #從json清單獲取裝置mac，來比對scan_for_devices()回傳的device_mac，如果一致則進行連線，如果沒有則5秒後再次搜尋，如果搜尋到則進行之後的連線
         predefined_devices = {device['MAC']: device for device in config.get('bluetooth_devices', [])}
+        device_name = config.get('bluetooth_devices', [])[0].get('name', None)
         device_mac = config.get('bluetooth_devices', [])[0].get('MAC', None)
 
-
-        print("預設連線裝置為",device_mac,type(device_mac))
+        print("連線裝置名稱：",device_name)
+        print("預連線裝置MAC：",device_mac)
         while True:
-            device_mac, addr_type = scan_for_devices('78:02:b7:dc:1e:35')
+            device_mac, addr_type = scan_for_devices(device_mac)
             if device_mac in predefined_devices:
                 try:
                     p = Peripheral(device_mac, addr_type)

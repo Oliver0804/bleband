@@ -51,6 +51,7 @@ def list_characteristics_for_service(peripheral, service_uuid):
 
 
 def scan_for_devices(target_mac=None):
+    print("bluetooth scan...")
     while True:  # Infinite loop to allow re-scanning
         scanner = Scanner()
         scanner.scan(10.0)  # Scan for 10 seconds
