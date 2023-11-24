@@ -51,6 +51,7 @@ def main():
         auto_connect = config.get('bluetooth_settings', {}).get('auto_connect', 'n')
     print (auto_connect)
     while auto_connect=='n':
+        print("Auto connect disenable.")
         device_mac, addr_type = scan_for_devices()
         p = Peripheral(device_mac, addr_type)
         try:
@@ -86,25 +87,57 @@ def main():
         finally:
             p.disconnect()
     while auto_connect == 'y':
+        print("Auto connect enable.")
         max_connection_limit = config.get('bluetooth_settings', {}).get('max_connection_limit', 5)
         devices = config.get('bluetooth_devices', [])
-        d,a=scan_for_devices() 
-        threads = []
-        for device in devices:
-            if len(threads) < max_connection_limit:
-                device_mac = device['MAC']
-                t = threading.Thread(target=connect_device, args=(device_mac, "public"))  # assuming addr_type is "random"
-                t.start()
-                threads.append(t)
-                
-                # Allow some time for connection establishment before starting the next thread
-                time.sleep(1)
         
-        # Wait for all threads to complete
-        for t in threads:
-            t.join()
+        #從json清單獲取裝置mac，來比對scan_for_devices()回傳的device_mac，如果一致則進行連線，如果沒有則5秒後再次搜尋，如果搜尋到則進行之後的連線
+        predefined_devices = {device['MAC']: device for device in config.get('bluetooth_devices', [])}
+        device_mac = config.get('bluetooth_devices', [])[0].get('MAC', None)
 
-        time.sleep(5)  # Wait for some time before checking auto_connect again
+
+        print("預設連線裝置為",device_mac,type(device_mac))
+        while True:
+            device_mac, addr_type = scan_for_devices('78:02:b7:dc:1e:35')
+            if device_mac in predefined_devices:
+                try:
+                    p = Peripheral(device_mac, addr_type)
+                    p.withDelegate(NotifyDelegate(device_mac))
+                    last_write_time = 0
+                    write_and_enable_notifications(p)  # Call the new function here
+
+                    print("Press q to exit.")
+                    no_data_time = 0  # Reset the no data timer
+                    while True:
+                        if p.waitForNotifications(1.0):
+                            no_data_time = 0  # Reset the no data timer
+                            continue
+                        else:
+                            no_data_time += 1  # Increment the no data timer
+
+                        if no_data_time >= 5:
+                            write_and_enable_notifications(p)  # Call the function again if no data for 5 seconds
+                            no_data_time = 0  # Reset the no data timer
+
+                        # Check for user input
+                        rlist, _, _ = select.select([sys.stdin], [], [], 0.1)
+                        if rlist:
+                            user_input = sys.stdin.readline()
+                            if user_input.lower().strip() == 'q':
+                                p.disconnect()
+                                return
+                except BTLEDisconnectError:
+                    print("Device disconnected. Trying to reconnect...")
+                    p.disconnect()
+                    time.sleep(5)  # Wait for 5 seconds before trying to reconnect
+                finally:
+                    p.disconnect()
+                break  # 跳出循環，因為已經成功連接一個設備
+            else:
+                print("No predefined devices found. Scanning again in 5 seconds.")
+                time.sleep(5)  # 等待 5 秒後再次掃描
+            
+
  
 if __name__ == "__main__":
     main()

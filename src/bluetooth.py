@@ -31,34 +31,7 @@ def save_device_info(name, mac):
         print(f"Device info already exists: {name} - {mac}")
 
 
-def scan_for_devices():
-    while True:  # Infinite loop to allow re-scanning
-        scanner = Scanner()
-        scanner.scan(10.0)  # Scan for 10 seconds
-        devices = list(scanner.getDevices())  # Convert devices to a list
 
-        print("0. Rescan for devices.")
-        for i, dev in enumerate(devices, start=1):  # start=1 makes the index start from 1
-            print(f"{i}. Device {dev.addr} ({dev.addrType}, {dev.getValueText(9) or 'Unknown Name'}), RSSI={dev.rssi} dB")  # dev.getValueText(9) gets the device name
-
-        print(f"{len(devices) + 1}. Exit.")
-
-        while True:  # Inner loop to validate the user's input
-            try:
-                index = int(input("Select the device to connect to (by index) or other options above: "))
-                if 0 <= index <= len(devices) + 1:
-                    break  # Valid input, break out of the inner loop
-                else:
-                    print("Invalid choice. Please select a valid option.")
-            except ValueError:
-                print("Invalid input. Please enter a number.")
-
-        if index == 0:  # Rescan
-            continue
-        elif index == len(devices) + 1:  # Exit
-            exit(0)
-        else:
-            return devices[index - 1].addr, devices[index - 1].addrType  # -1 because our device indexing starts from 1
 
 
 def list_characteristics_for_service(peripheral, service_uuid):
@@ -77,17 +50,24 @@ def list_characteristics_for_service(peripheral, service_uuid):
 
 
 
-
-def scan_for_devices():
+def scan_for_devices(target_mac=None):
     while True:  # Infinite loop to allow re-scanning
         scanner = Scanner()
         scanner.scan(10.0)  # Scan for 10 seconds
         devices = list(scanner.getDevices())  # Convert devices to a list
 
+        if target_mac:
+            for dev in devices:
+                if dev.addr.lower() == target_mac.lower():
+                    print(f"Found device with MAC {target_mac}: {dev.getValueText(9) or 'Unknown Name'}, RSSI={dev.rssi}")
+                    return dev.addr, dev.addrType
+            print(f"Device with MAC {target_mac} not found. Rescanning...")
+            continue  # Continue scanning if the device was not found
+
         print("0. Rescan for devices.")
-        for i, dev in enumerate(devices, start=1):  # start=1 makes the index start from 1
-            print(f"{i}. Device {dev.addr} ({dev.addrType}, {dev.getValueText(9) or 'Unknown Name'}), RSSI={dev.rssi}")  # dev.getValueText(9) gets the device name
-        
+        for i, dev in enumerate(devices, start=1):
+            print(f"{i}. Device {dev.addr} ({dev.addrType}, {dev.getValueText(9) or 'Unknown Name'}), RSSI={dev.rssi}")
+
         print(f"{len(devices) + 1}. Exit.")
 
         while True:  # Inner loop to validate the user's input
@@ -110,7 +90,7 @@ def scan_for_devices():
             device_mac = selected_device.addr
             save_device_info(device_name, device_mac)  # Save device info
             print(f"Device info saved: {device_name} - {device_mac}")
-            return device_mac, selected_device.addrType  # -1 because our device indexing starts from 1
+            return device_mac, selected_device.addrType
 
 def write_data_every_interval(p, interval=60):
     while not exit_flag.is_set():  # While the program should not exit

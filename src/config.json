@@ -6,7 +6,7 @@
         }
     ],
     "mysql": {
-        "IP": "127.0.0.1",
+        "IP": "192.168.0.92",
         "PORT": "3306",
         "DB": "ble_devices",
         "TABLES": "HeartbeatData",
@@ -15,6 +15,6 @@
     },
     "bluetooth_settings": {
         "auto_connect": "n",
-        "max_connection_limit": 5
+        "max_connection_limit": 1
     }
 }
