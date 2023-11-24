@@ -49,7 +49,7 @@ def main():
     with open('./src/config.json', 'r') as file:
         config = json.load(file)
         auto_connect = config.get('bluetooth_settings', {}).get('auto_connect', 'n')
-    print (auto_connect)
+    print ("自動連線嗎？",auto_connect)
     while auto_connect=='n':
         print("Auto connect disenable.")
         device_mac, addr_type = scan_for_devices()

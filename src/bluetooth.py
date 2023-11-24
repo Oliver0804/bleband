@@ -19,16 +19,14 @@ def save_device_info(name, mac):
     config_path = './src/config.json'
     with open(config_path, 'r') as file:
         config = json.load(file)
-    
-    # 檢查裝置是否已在列表中，檢查名稱和 MAC 地址
-    if not any(device['name'] == name and device['MAC'] == mac for device in config['bluetooth_devices']):
-        config['bluetooth_devices'].append({"name": name, "MAC": mac})
-    
-        with open(config_path, 'w') as file:
-            json.dump(config, file, indent=4)
-        print(f"Device info saved: {name} - {mac}")
-    else:
-        print(f"Device info already exists: {name} - {mac}")
+
+    # 清空 'bluetooth_devices' 列表，并添加当前设备信息
+    config['bluetooth_devices'] = [{"name": name, "MAC": mac}]
+
+    # 保存更新后的配置
+    with open(config_path, 'w') as file:
+        json.dump(config, file, indent=4)
+    print(f"Device info updated: {name} - {mac}")
 
 
 
