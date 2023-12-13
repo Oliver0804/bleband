@@ -3,7 +3,6 @@
 # 服務名稱
 SERVICE_NAME="PythonAppService"
 
-# 創建一個新的 systemd 服務文件
 sudo bash -c "cat > /etc/systemd/system/$SERVICE_NAME.service <<EOF
 [Unit]
 Description=Python Application Service
@@ -12,6 +11,7 @@ Description=Python Application Service
 WorkingDirectory=/home/rock/bletools
 ExecStart=/usr/bin/python3 /home/rock/bletools/main.py
 Restart=always
+RestartSec=10
 User=root
 Group=root
 Environment=PYTHONUNBUFFERED=1

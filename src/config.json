@@ -6,7 +6,7 @@
         }
     ],
     "mysql": {
-        "IP": "192.168.0.101",
+        "IP": "bleband-1c-c3.local",
         "PORT": "3306",
         "DB": "ble_devices",
         "TABLES": "HeartbeatData",
