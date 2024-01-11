@@ -129,10 +129,11 @@ def main():
                                 return
                 except BTLEDisconnectError:
                     print("Device disconnected. Trying to reconnect...")
-                    p.disconnect()
+                    #p.disconnect()
                     time.sleep(5)  # Wait for 5 seconds before trying to reconnect
                 finally:
-                    p.disconnect()
+                    time.sleep(5)
+                    #p.disconnect()
                 break  # 跳出循環，因為已經成功連接一個設備
             else:
                 print("No predefined devices found. Scanning again in 5 seconds.")
