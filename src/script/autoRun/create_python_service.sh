@@ -11,7 +11,9 @@ Description=Python Application Service
 WorkingDirectory=/home/rock/bletools
 ExecStart=/usr/bin/python3 /home/rock/bletools/main.py
 Restart=always
-RestartSec=10
+RestartSec=10s
+StartLimitBurst=0
+StartLimitIntervalSec=0
 User=root
 Group=root
 Environment=PYTHONUNBUFFERED=1
